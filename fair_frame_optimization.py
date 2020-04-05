@@ -2,6 +2,8 @@
 
 from scipy import optimize
 import numpy as np
+import click 
+
 
 def batch_size(n, rho, delta):
     gamma = rho * np.exp(1.0 - rho)
@@ -18,14 +20,25 @@ def constraint(n, rho, delta):
     return delta * (1.0 / rho + n + n * rho * T)
 
 
-if __name__ == "__main__":
-    n = 64.0
-    rho = 0.9
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.option('-n', '--port-number', default=64, type=int, help='Number of (input or output) ports')
+@click.option('-l', '--load-bound', default=0.9,type=float, help='Upper bound for the offerred load')
+def parameterize(port_number, load_bound):
+    """Calculating the best parameters for Fair-Frame algorithm"""
     result = optimize.minimize(
-        lambda x: objective_func(n=n, rho=rho, delta=x),
-        (1.0 / (n * n),),
-        bounds=((1e-12, 1.0 / n),),
+        lambda x: objective_func(n=port_number, rho=load_bound, delta=x),
+        (1.0 / (port_number * port_number),),
+        bounds=((1e-12, 1.0 / port_number),),
     )
     print(result)
-    print(constraint(n, rho, result.x[0]))
-    print(batch_size(n, rho, result.x[0]))
+    delta_min = result.x[0]
+    c = constraint(port_number, load_bound, delta_min)
+    print(f'delta_min: {delta_min}')
+    print(f'constraint: {c} < 1')
+    T = batch_size(port_number, load_bound, delta_min)
+    print(f'batch size: {T}')
+
+if __name__ == "__main__":
+    parameterize()
